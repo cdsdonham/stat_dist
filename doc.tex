@@ -1,0 +1,1001 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{tocbasic}
+
+\usepackage{stat_dist}
+\usepackage{xcolor}
+\usepackage{tabu}
+
+\usepackage[a4paper,%
+            left=1in,right=1in,top=1in,bottom=1in,%
+            ]{geometry}
+
+\input stat_lib.tex
+
+\usepackage{listings}
+\lstset
+{
+    language=[LaTeX]TeX,
+    breaklines=true,
+    basicstyle=\tt\scriptsize,
+    keywordstyle=\color{blue},
+    identifierstyle=\color{magenta},
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{\baselineskip}
+
+% Redefinition of ToC command to get centered heading
+\makeatletter
+\renewcommand\tableofcontents{%
+  \null\hfill\textbf{\Large\contentsname}\hfill\null\par
+  \@mkboth{\MakeUppercase\contentsname}{\MakeUppercase\contentsname}%
+  \@starttoc{toc}%
+}
+\makeatother
+
+\begin{document}
+
+\centerline{stat\_dist}
+
+\centerline{Statistical Distribution Illustrations}
+
+\centerline{01/17/2020 - Version 1.0 released}
+
+\vspace*{10pt}
+
+\centerline{\textbf{Abstract}}
+
+The \textbf{stat\_dist} package is used to draw illustrations for
+statistical distributions.  The package was written to aid in
+generating pictures for an introductory statistics class
+(e.g. hypothesis tests, confidence intervals, ...).  Currently, the
+package has support for Normal Distributions and Student T
+Distributions, with limited support for $\chi^2$ and Binomial
+Distributions.
+
+\begin{tabu} to 0.8\linewidth{|c|c|} \tabucline{-}
+  \textbf{Normal Distribution} & \textbf{Student T Distribution} \\[10pt]
+
+  \begin{NormDist}
+    \begin{tikzpicture}[scale=0.6]
+      \begin{axis}[DistAxis]
+        \centerFill{-0.63}{-0.63}{110}{1.04}{1.04}{150}{}
+        \confidenceLevel{}
+        \secondAxis{125}{wpm} % mean
+        \drawDist;
+        \draw  node at (axis cs:-2.5, 0.3) [text width=3cm] {Area = 
+          (0.5832 - 0.2643) = \textcolor{red}{0.3189}};
+        \draw  [thick, -latex] (axis cs:-2.4, 0.2) -- (axis cs:-0.25, 0.1);
+      \end{axis}
+    \end{tikzpicture}
+  \end{NormDist} &
+  \begin{FakeStudDist}{9}
+    \begin{tikzpicture}[scale=0.6]
+      \begin{axis}[DistAxis]
+        \centerFill{-1.645}{-1.645}{30}{1.645}{1.645}{50}{}
+        \confidenceLevel{0.90}
+        \secondAxis{40}{lbs}
+        \drawDist;
+      \end{axis}
+    \end{tikzpicture}
+  \end{FakeStudDist} \\ \tabucline{-}
+   & \\
+  \textbf{$\chi^2$ Distribution} & \textbf{Binomial Distribution} \\ [10pt]
+  \begin{ChiDist}
+    \begin{tikzpicture}[scale=0.6]
+      \begin{axis}[DistAxis]
+        \rightTailChi[fill=orange!50]{4}{$\chi^2$ Label}{Alpha}
+        \rightTestChi{5}{$\chi^2$ Label}{P-Value}
+        \drawDist;
+      \end{axis}
+    \end{tikzpicture}
+  \end{ChiDist} &
+  \begin{BinomDist}{10}{0.2}
+    \begin{tikzpicture}[scale=0.6]
+      \begin{axis}[DistAxis]
+        \rightTail{3}{3}{0.2}{}
+        \drawDist;
+      \end{axis}
+    \end{tikzpicture}
+  \end{BinomDist} \\  \tabucline{-}
+\end{tabu}
+  
+\vspace*{10pt}
+
+\tableofcontents
+
+\pagebreak
+
+\section{Declaring a Distribution}
+
+To start an illustration, declare the type of distribution that will
+be used.  For the vast majority of the illustrations, only a single
+type of distribution is used in any given illustration.  The
+distributions that are supported are shown below.
+
+\subsection{Normal Distributions} 
+
+The declaration of a normal distribution has no parameters.
+
+  \begin{minipage}{0.3\textwidth}
+  \begin{lstlisting}
+    \begin{NormDist}
+      ...
+    \end{NormDist}
+  \end{lstlisting}
+  \end{minipage}
+  \begin{minipage}{0.6\textwidth}
+  This sets up a standard normal distribution, though through
+  labelling, it can illustrate non-standard normal distributions as
+  well.  \textit{Of all of the distributions, the normal distribution
+    is the least computationally burdensome for LaTex.}
+  \end{minipage}
+  
+\subsection{Student T Distributions}
+
+The declaration of a student T distribution requires setting the
+number of degrees of freedom for the distribution.
+
+  \begin{minipage}{0.3\textwidth}
+  \begin{lstlisting}
+    \begin{StudDist}{9}
+      ...
+    \end{StudDist}
+  \end{lstlisting}
+  \end{minipage}
+  \begin{minipage}{0.6\textwidth}
+    This creates a student T distribution.  The required parameter
+    (``9'' in this example) is the number of degrees of freedom.
+    \textit{Using this distribution is computationally burdensome
+      for LaTex.}  For many illustrations, the difference between a
+    student T distribution and a normal distribution is not noticable.
+    Thus, unless there is a real need to display an accurate student T
+    distribution, a ``fake'' student T distribution should be used
+    instead.
+  \end{minipage}
+
+\subsection{Fake Student T Distributions}
+
+The declaration of a fake student T distribution requires setting the
+number of degrees of freedom for the distribution.
+
+  \begin{minipage}{0.3\textwidth}
+  \begin{lstlisting}
+    \begin{FakeStudDist}{9}
+      ...
+    \end{FakeStudDist}
+  \end{lstlisting}
+  \end{minipage}
+  \begin{minipage}{0.6\textwidth}
+    A fake student T distribution uses a normal distribution for the
+    curve, but labels the axis with a 't'.  The reason for this is
+    that the normal distribution is much less computationally
+    burdensome for LaTex.  Thus, documents which don't need the
+    accuracy of the true student T will process much faster in LaTex
+    if the fake student T distribution is used instead.  The parameter
+    for the fake student T distribution (``9'' in this example) is not
+    used, and exists solely to make switching back and forth between a
+    computationally accurate rendition and the fake version simple.
+  \end{minipage}
+
+\subsection{$\chi^2$ Distributions}
+
+The declaration of a $\chi^2$ distribution has no parameters.
+
+  \begin{minipage}{0.3\textwidth}
+  \begin{lstlisting}
+    \begin{ChiDist}
+      ...
+    \end{ChiDist}
+  \end{lstlisting}
+  \end{minipage}
+  \begin{minipage}{0.6\textwidth}
+    This sets up a $\chi^2$ distribution.  The $\chi^2$ distribution
+    does not support as many of the markup options as this distribution
+    is asymmetric, with a tail on the right only.  I have yet to encounter
+    a use for a left tail and as such, it is not (yet) supported.
+  \end{minipage}
+
+\subsection{Binomial Distributions}
+
+The declaration of a binomial distribution requires setting number of
+trials and the probability of success.
+
+  \begin{minipage}{0.3\textwidth}
+  \begin{lstlisting}
+    \begin{BinomDist}{10}{0.2}
+      ...
+    \end{BinomDist}
+  \end{lstlisting}
+  \end{minipage}
+  \begin{minipage}{0.6\textwidth}
+    This creates a binomial distribution.  The first parameter
+    (``10'' in this example) is the number of trials.  The second
+    paramters (``0.2'' is this example) is the probability of
+    success.
+  \end{minipage}
+
+\section{Adding Markups to Distributions}
+
+The same basic commands are used to markup the distributions supported
+by this package.  The process for marking up a normal distribution are
+described below.  Then, special cases unique to particular
+distributions are described.
+
+For each of the markups, there is typically one parameter which
+identifies the location of the markup, and a second parameter which
+defines the label for the markup.  This allows for the case where you
+want the item positioned at one place, but the label to say something
+else.  For example, if the z-score is 5 (which would be beyond the end
+of a typical drawing), you can position the item at z-score 4, but
+have the label say 5.
+
+\subsection{Summary of Markup Commands}
+
+Shown below are example markups with text labels used in lieu of
+numbers to identify each of the labels available in the markups.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail[fill=orange!50]{Z-Score}{Z Label}{Alpha}{Problem}
+      \leftTail[fill=orange!50]{Z-Score}{Z Label}{Alpha}{Problem}
+      \confidenceLevel[Zero]{Area}
+      \secondAxis{Mean}{Label}
+      \rightTestStatistic{Z-Score}{Z Label}{P-Value}{Problem}
+      \leftTestStatistic{Z-Score}{Z Label}{P-Value}{Problem}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail[fill=orange!50]{1.645}{Z Label}{Alpha}{Problem}
+      \leftTail[fill=orange!50]{-1.645}{Z Label}{Alpha}{Problem}
+      \confidenceLevel[Zero]{Area}
+      \secondAxis{Mean}{Label}
+      \rightTestStatistic{1.45}{Z Label}{P-Value}{Problem}
+      \leftTestStatistic{-1.45}{Z Label}{P-Value}{Problem}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+In addition to leftTail and rightTail illustrations, there is
+a centerFill command for situations where one or multiple regions
+within the distribution are being illustrated.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \centerFill[fill=orange!50]
+           {-1.645}{Left Z Label}{Left Problem}
+           {1.645}{Right Z Label}{Right Problem}
+           {Area}
+      \confidenceLevel[Zero]{}
+      \secondAxis{Mean}{Label}
+      \rightTestStatistic{Z-Score}{Z Label}{P-Value}{Problem}
+      \leftTestStatistic{Z-Score}{Z Label}{P-Value}{Problem}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \centerFill[fill=orange!50]{-1.645}{Left Z Label}{Left Problem}
+                                  {1.645}{Right Z Label}{Right Problem}{Area}
+      \confidenceLevel[Zero]{}
+      \secondAxis{Mean}{Label}
+      \rightTestStatistic{1.45}{Z Label}{P-Value}{Problem}
+      \leftTestStatistic{-1.45}{Z Label}{P-Value}{Problem}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+\subsection{Marking the Tails}
+
+The tails of the distribution are identified with the \verb|\leftTail|
+and/or \verb|\rightTail| commands.  Each of these commands has four
+parameters: Value, Label, Alpha, and Problem.  The Value is the
+standard normal z-score where the markup will be located.  The Label
+is the text which will be printed at the base of the markup.  The
+Alpha is the probability that is associated with the area in the tail.
+The Problem is the text to put on the second axis.  The Label, Alpha,
+and Problem parameters are optional in the sense that an empty value
+will cause nothing to be printed.
+
+In the example below, no second axis is shown, so this paramter is empty.  
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+The right tail is marked in a similar manner.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail{1.645}{1.645}{0.05}{}
+      \confidenceLevel{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail{1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+When both tails need to be marked, both \verb|\leftTail| and
+\verb|\rightTail| can be used as in the next example.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \rightTail{1.645}{1.645}{0.05}{}
+      \confidenceLevel{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \rightTail{1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+\subsection{Marking the Center}
+
+A typical usage for the centerFill command would be in illustrating
+a confidence interval.  An example with typical parameters is shown.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \centerFill{-1.645}{-1.645}{}{1.645}{1.645}{}{}
+      \confidenceLevel{0.90}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \centerFill{-1.645}{-1.645}{}{1.645}{1.645}{}{}
+      \confidenceLevel{0.90}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+\subsection{Marking the Test Statistic}
+
+Similar to marking the tails, the \verb|\leftTestStatistic| and
+\verb|\rightTestStatistic| are used to mark the location of the test
+statistics. Each of these commands has four parameters: Value, Label,
+P-Value, and Problem.  The Value is the standard normal z-score where
+the markup will be located.  The Label is the text which will be
+printed at the base of the markup.  The P-Value is the probability
+that is associated with the area to the left or right of the test
+statistic.  The Problem is the text to put on the second axis.  The
+Label, P-Value, and Problem parameters are optional in the sense that an
+empty value will cause nothing to be printed.
+
+In the example below, no second axis is shown, so this parameter is empty.  
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \confidenceLevel{}
+      \leftTestStatistic{Z-Score}{Z Label}{P-Value}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \confidenceLevel{}
+      \leftTestStatistic{-1.45}{Z Label}{P-Value}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+Multiple test statistics can be included.  While the library tries
+to put the probability at different heights, coding all possible
+cases is complicated.  As a result, there is an optional parameter
+that offsets the probability location if needed.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTestStatistic{-2.0}{-2.0}{0.0228}{}
+      \leftTestStatistic{-1.0}{-1.0}{0.1587}{}
+      \leftTestStatistic{0}{0}{0.5}{}
+      \leftTestStatistic[0.15]{1.0}{1.0}{0.8413}{}
+      \leftTestStatistic[0.225]{2.0}{2.0}{0.9772}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTestStatistic{-2.0}{-2.0}{0.0228}{}
+      \leftTestStatistic{-1.0}{-1.0}{0.1587}{}
+      \leftTestStatistic{0}{0}{0.5}{}
+      \leftTestStatistic[0.15]{1.0}{1.0}{0.8413}{}
+      \leftTestStatistic[0.225]{2.0}{2.0}{0.9772}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+Right test statistics are done similarly.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTestStatistic{-2.0}{-2.0}{0.0228}{}
+      \rightTestStatistic{-1.0}{-1.0}{0.1587}{}
+      \rightTestStatistic{0}{0}{0.5}{}
+      \rightTestStatistic[0.15]{1.0}{1.0}{0.8413}{}
+      \rightTestStatistic[0.225]{2.0}{2.0}{0.9772}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTestStatistic[0.225]{-2.0}{-2.0}{0.9772}{}
+      \rightTestStatistic[0.15]{-1.0}{-1.0}{0.8413}{}
+      \rightTestStatistic{0}{0}{0.5}{}
+      \rightTestStatistic{1.0}{1.0}{0.1587}{}
+      \rightTestStatistic{2.0}{2.0}{0.0228}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+\subsection{Normal vs Standard Normal Distributions}
+
+For my students, instead of rescaling the z axis to match the problem,
+I always draw a standard normal distribution ($\mu=0$, $\sigma=1$),
+and then have a second axis which is matched to the units of the problem.
+Especially in the introductory classes to the normal distribution, there
+are times where no ``units of the problem'' exist, and so just want the
+plain distribution shown below (not including the secondAxis and leaving
+the {Problem} parameters to leftTail and leftTestStatistic effectively cause
+the problem axis not to be drawn).
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \leftTestStatistic{-1.45}{-1.45}{0.0735}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \leftTestStatistic{-1.45}{-1.45}{0.0735}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+The associated right tail drawings without a secondary problem axis can
+also be drawn.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail{1.645}{1.645}{0.05}{}
+      \confidenceLevel{}
+      \rightTestStatistic{1.45}{1.45}{0.0735}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail{1.645}{1.645}{0.05}{}
+      \confidenceLevel{}
+      \rightTestStatistic{1.45}{1.45}{0.0735}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+Here is an example of a failing left tail test hypothesis test with
+typical numbers filled in.  Right tailed tests are done similarly.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \secondAxis{0.35}{}
+      \leftTestStatistic{-1.45}{-1.45}{0.0735}{0.37}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{-1.645}{-1.645}{0.05}{}
+      \confidenceLevel{}
+      \secondAxis{0.35}{}
+      \leftTestStatistic{-1.45}{-1.45}{0.0735}{0.37}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+While the package knows how to compute student T distributions for
+various degrees of freedom, its not really clear that this is useful.
+In particular, since multiple distributions are not included on
+the same drawing, there is no way for the reader to know whether or
+not a Student T or Normal distribution is actually being drawn!
+Further, since the Student T is much more computationally intensive
+to draw, there is a definite advantage to drawing Normal distributions
+even for the Student T case.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{StudDist}{9}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \centerFill{-1.645}{-1.645}{30}{1.645}{1.645}{50}{}
+      \confidenceLevel{0.90}
+      \secondAxis{40}{lbs}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{StudDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{StudDist}{9}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \centerFill{-1.645}{-1.645}{30}{1.645}{1.645}{50}{}
+      \confidenceLevel{0.90}
+      \secondAxis{40}{lbs}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{StudDist}
+\end{center}
+\end{minipage}
+
+For $\chi^2$ distributions, the notion of a problem axis
+doesn't make sense for the types of problems I use.  Currently,
+support for a problem axis is not present.
+
+\begin{minipage}{0.5\textwidth}
+  \begin{lstlisting}
+    \begin{ChiDist}
+    \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTailChi[fill=orange!50]{4}{$\chi^2$ Label}{Alpha}
+      \rightTestChi{5}{$\chi^2$ Label}{P-Value}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+    \end{ChiDist}
+  \end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{ChiDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTailChi[fill=orange!50]{4}{$\chi^2$ Label}{Alpha}
+      \rightTestChi{5}{$\chi^2$ Label}{P-Value}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{ChiDist}
+\end{center}
+\end{minipage}
+
+Finally, the library also has support for binomial distributions.
+
+\begin{center}
+\begin{BinomDist}{10}{0.2}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail{3}{3}{0.2}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{BinomDist}
+\end{center}  
+
+\begin{center}
+\begin{BinomDist}{8}{0.5}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \leftTail{3}{3}{0.2}{}
+      \rightTail{6}{6}{0.2}{}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{BinomDist}
+\end{center}  
+
+\section{Real Usage Examples}
+
+Find the probability that a z score will be above -1. 
+
+\begin{center}
+  \begin{NormDist}
+    \begin{tikzpicture}[scale=0.9]
+      \begin{axis}[DistAxis]
+	\rightTail{-1.0}{-1.0}{}{}
+        \confidenceLevel{}
+        \draw  node at (axis cs:-2.5, 0.3) [text width=3cm] {Use z=-1.00 in Table to find this area.};
+	\draw  node at (axis cs:0.3, 0.1)  [text width=2cm] {What is this area?};
+
+        \draw    [thick, -latex] (axis cs:-2.4, 0.2) -- (axis cs:-2.0, 0.1);
+        \drawDist;
+      \end{axis}
+    \end{tikzpicture}
+  \end{NormDist}
+\end{center}
+
+  Tall Clubs International has a requirement that women must be at
+  least 70 inches tall.  Given that women have normally distributed
+  heights with a mean of 63.8 inches and a standard deviation of 2.6
+  inches, find the percentage of women who satisfy that height
+  requirement.
+
+\begin{minipage}{0.5\textwidth}
+  \begin{lstlisting}
+    \begin{NormDist}
+      \begin{tikzpicture}[scale=0.6]
+        \begin{axis}[DistAxis]
+          \rightTail{2.38}{2.38}{0.0087}{70}
+          \confidenceLevel{}
+          \secondAxis{63.8}{x (in)}
+          \drawDist;
+        \end{axis}
+      \end{tikzpicture}
+    \end{NormDist}
+  \end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+  \begin{NormDist}
+    \begin{tikzpicture}[scale=0.6]
+      \begin{axis}[DistAxis]
+        \rightTail{2.38}{$2.38$}{0.0087}{70}
+        \confidenceLevel{}
+        \secondAxis{63.8}{x (in)}
+        \drawDist;
+      \end{axis}
+    \end{tikzpicture}
+  \end{NormDist}
+\end{center}
+\end{minipage}
+
+\section{Special Situations}
+
+Beyond simply illustrating problems, this package can be used
+to create illustrations useful in teaching statistical concepts.
+This section has examples of these kinds of illustrations.
+
+\subsection{Student T vs Normal Distributions}
+
+An application where drawing the true Student T distribution is
+meaningful is as a comparison of the impact of degrees of freedom on
+the curve, as well as a comparison between Student T and Normal such
+as the figure below.  As shown, the student T distribution approaches
+a normal distribution.  By the time degrees of freedom hits 50, the
+differences between the distributions are not visible at this scale.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+
+    \addplot [very thick,draw=red!80!black] {std_stud(1,x)};
+    \addplot [very thick,draw=red!80!black] {std_stud(2,x)};
+    \addplot [very thick,draw=red!80!black] {std_stud(5,x)};
+    \addplot [very thick,draw=red!80!black] {std_stud(50,x)};
+    \addplot [very thick,draw=blue!80!black] {std_norm(x)};
+    ...
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+
+    \addplot [very thick,draw=red!80!black] {std_stud(1,x)};
+    \addplot [very thick,draw=red!80!black] {std_stud(2,x)};
+    \addplot [very thick,draw=red!80!black] {std_stud(5,x)};
+    \addplot [very thick,draw=red!80!black] {std_stud(50,x)};
+
+    \draw    [anchor=west] node at (axis cs:1.5, 0.20) { df=1 };
+    \draw    [anchor=west] node at (axis cs:1.5, 0.25) { df=2 };
+    \draw    [anchor=west] node at (axis cs:1.5, 0.30) { df=5 };
+    \draw    [anchor=west] node at (axis cs:1.5, 0.35) { df=50 };
+
+    \draw    [thick, -latex] (axis cs:1.4, 0.20) -- (axis cs:0.8, {std_stud(1,0.8)});
+    \draw    [thick, -latex] (axis cs:1.4, 0.25) -- (axis cs:0.75, {std_stud(2,0.75)});
+    \draw    [thick, -latex] (axis cs:1.4, 0.30) -- (axis cs:0.7, {std_stud(5,0.7)});
+    \draw    [thick, -latex] (axis cs:1.4, 0.35) -- (axis cs:0.65, {std_stud(50,0.65)});
+
+    \addplot [very thick,draw=blue!80!black] {std_norm(x)};
+
+    \draw    [anchor=east] node at (axis cs:-1.5, 0.35) { norm };
+    \draw    [thick, -latex] (axis cs:-1.4, 0.35) -- (axis cs:-0.5, {std_norm(-0.5)});
+
+    \draw    [thick,magenta] (axis cs:0, -0.02) -- (axis cs:0, 0.02);
+    \draw    node at (axis cs:0,-0.02) [below] {0};
+
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{minipage}
+
+\subsection{Binomial vs Normal Distributions}
+
+Shown below is another way of combining multiple distributions into a
+single illustration.  Note, here, how the order of the tikzpicture and
+NormDist has been swapped.  This picture shows how a binomial
+distribution compares with a normal distribution.  In the situation
+shown with $n=8$ and $p=0.4$, $np(1-p) < 10$ meaning that a normal
+distribution is not yet a good approximateion for the binomial
+distribution.
+
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+\begin{tikzpicture}[scale=0.7]
+  \begin{NormDist}
+    \begin{axis}[DistAxis, domain=-2.67:2.38]
+    \addplot [very thick,draw=red!80!black] {std_norm(x)};
+    \end{axis}
+  \end{NormDist}
+  \begin{BinomDist}{8}{0.4}
+    \begin{axis}[DistAxis]
+    \addplot [very thick,draw=blue!80!black] {binom(x,8,0.4)};
+    \end{axis}
+  \end{BinomDist}
+\end{tikzpicture}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+  \begin{NormDist}
+% z0 = (-0.5 - (8*0.4)) / (sqrt(8*0.4*0.6))
+% z1 = (6.5 - (8*0.4)) / (sqrt(8*0.4*0.6))
+    \begin{axis}[DistAxis, domain=-2.67:2.38]
+    \addplot [very thick,draw=red!80!black] {std_norm(x)};
+    \end{axis}
+  \end{NormDist}
+  \begin{BinomDist}{8}{0.4}
+    \begin{axis}[DistAxis]
+    \addplot [very thick,draw=blue!80!black] {binom(x,8,0.4)};
+    \end{axis}
+  \end{BinomDist}
+\end{tikzpicture}
+\end{center}
+\end{minipage}
+
+\subsection{Empirical Rule}
+
+Early in an introductory statistics class, when the normal distribution
+is being introduced to the class, the Empirical Rule is used to teach
+basic properties of the normal distribution.
+
+\begin{center}
+  \begin{NormDist}
+    \begin{tikzpicture}[scale=0.7]
+      \EmpiricalRule
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+
+\subsection{Confidence Intervals}
+
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+     \ConfidenceInterval
+     \end{axis}
+   \end{tikzpicture}
+ \end{NormDist}
+\end{center}
+
+\subsection{Hypothesis Testing}
+
+\begin{center}
+  \begin{NormDist}
+    \begin{tikzpicture}[scale=0.7]
+      \RightTailHypothesis
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+
+
+\end{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{minipage}{0.45\textwidth}
+  \textsl{The reading speed of sixth-grade students is normally distributed
+  with a mean speed of 125 words per minute and a standard deviation
+  of 24 words per minute.  Find the probability that a randomly
+  selected student reads between 110 and 150 words per minute.}
+
+
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\textwidth}
+  \textsl{Most IQ tests have a mean of 100 and standard deviation of
+    15.  Using such a test, a random sample of thirty students have a
+    mean score of 112.  Are the students above average?}
+  
+  \begin{center}
+    \begin{NormDist}
+      \begin{tikzpicture}[scale=0.6]
+        \begin{axis}[DistAxis]
+          \rightTail{1.96}{1.96}{0.025}{}
+          \rightTestStatistic{0.8}{0.8}{0.21}{112}
+          \confidenceLevel{}
+          \secondAxis{100}{pts} % mean
+          \drawDist;
+        \end{axis}
+      \end{tikzpicture}
+    \end{NormDist}
+  \end{center}
+\end{minipage}

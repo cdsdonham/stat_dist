@@ -1,0 +1,27 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage{stat_dist}
+\usepackage{xcolor}
+\usepackage{tabu}
+
+\input stat_lib.tex
+
+\begin{document}
+
+\begin{center}
+\begin{NormDist}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{axis}[DistAxis]
+      \rightTail[fill=orange!50]{1.645}{Z Label}{Alpha}{Problem}
+      \leftTail[fill=orange!50]{-1.645}{Z Label}{Alpha}{Problem}
+      \confidenceLevel[Zero]{Area}
+      \secondAxis{Mean}{Label}
+%      \rightTestStatistic{1.45}{Z Label}{P-Value}{Problem}
+      \leftTestStatistic{0}{Z Label}{P-Value}{Problem}
+      \leftTestStatistic[0.15]{1.45}{Z Label}{P-Value}{Problem}
+      \drawDist;
+    \end{axis}
+  \end{tikzpicture}
+\end{NormDist}
+\end{center}
+\end{document}

@@ -1,0 +1,315 @@
+\usepackage{tabularray}
+\usetikzlibrary{shapes.arrows, fadings, calc} % Needed by ConfidenceInterval
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Critical Values and Correlation Coefficients for Linear Regression.
+%
+% \rvalueGraph{ CV } {r} {neg CV Label}{pos CV Label}{r Label}
+% \rValueGraph{ 0.533}{ -0.958}{$-0.533$}{$0.533$}{$-0.958$}
+
+\newcommand{\rValueGraph}[5] {
+  \begin{tikzpicture}[scale=1.0,
+                      every text node part/.style={align=center,text width=2cm,font=\small}]
+    \begin{axis}[
+       axis y line=none,
+       axis x line=middle,
+       x axis line style=-,
+       height=6cm,
+       width=9cm,
+       xmin=-1.01,
+       xmax=1.01,
+       ymin=-1,
+       ymax=1.0,
+       xtick={-1, 0, 1},
+       every x tick/.style={ black, thick},
+       clip=false
+       ]
+
+%    \addplot [draw=none]{0}; % Needed to make the axis work correctly if no drawing.!
+
+    \fill [pattern=north east lines,pattern color=green] (axis cs:-1.0,0) rectangle (axis cs:-#1,0.2);
+    \fill [pattern=north east lines,pattern color=red!50!white] (axis cs:-#1,0) rectangle (axis cs:#1,0.2);
+    \fill [pattern=north east lines,pattern color=green] (axis cs:#1,0) rectangle (axis cs: 1.0,0.2);
+
+    \addplot [mark=none] coordinates {(-1.0,0) (-1.0,0.2)};
+    \addplot [red, mark=none] coordinates {(-#1,0) (-#1,0.2)};
+    \addplot [red, mark=none] coordinates {(#1,0)  (#1,0.2)};
+    \addplot [mark=none] coordinates {(1.0,0)  (1.0,0.2)};
+
+    \ifx&#2&%
+    \else
+      \addplot [mark=none, very thick] coordinates {(#2,-0) (#2,0.25)};
+      \node at (axis cs:#2,0.31){ #5 };
+    \fi
+
+    \node at (axis cs:-#1,-0.3){ #3 };
+    \node at (axis cs:#1,-0.3){ #4 };
+
+    \node at (axis cs:-0.7,0.6){Negative Correlation};
+    \node at (axis cs:0.0,0.6){Weak or No Linear Relation};
+    \node at (axis cs:0.7,0.6){Positive Correlation};
+
+    \end{axis}
+  \end{tikzpicture}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Empirical Rule -- Annotate a normal curve with the percentages for
+% each std dev.
+%
+%% \begin{center}
+%% \begin{NormDist}
+%%   \begin{tikzpicture}[scale=0.7]
+%%     \EmpiricalRule
+%%     \end{axis}
+%%   \end{tikzpicture}
+%% \end{NormDist}
+%% \end{center}
+
+\newcommand{\EmpiricalRule} {
+  \begin{axis}[DistAxis,
+               xtick={-3,-2,-1,0,1,2,3}, 
+               every x tick/.style={color=black, thick},
+              ]
+
+    \drawDist;
+      
+    \draw [thick] (axis cs:-3,0) -- (axis cs:-3,{std_norm(-3)});
+    \draw [thick] (axis cs:-2,0) -- (axis cs:-2,{std_norm(-2)});
+    \draw [thick] (axis cs:-1,0) -- (axis cs:-1,{std_norm(-1)});
+    \draw [thick,magenta] (axis cs:0,0) -- (axis cs:0,{std_norm(0)});
+    \draw [thick] (axis cs:1,0) -- (axis cs:1,{std_norm(1)});
+    \draw [thick] (axis cs:2,0) -- (axis cs:2,{std_norm(2)});
+    \draw [thick] (axis cs:3,0) -- (axis cs:3,{std_norm(3)});
+
+    \node at (axis cs:3.5,0.1)   {\footnotesize 0.15\%};
+    \node at (axis cs:2.5,0.1)   {\footnotesize 2.35\%};
+    \node at (axis cs:1.5,0.05)  {\footnotesize 13.5\%};
+    \node at (axis cs:0.5,0.1)   {\footnotesize 34\%};
+    \node at (axis cs:-0.5,0.1)  {\footnotesize 34\%};
+    \node at (axis cs:-1.5,0.05) {\footnotesize 13.5\%};
+    \node at (axis cs:-2.5,0.1)  {\footnotesize 2.35\%};
+    \node at (axis cs:-3.5,0.1)  {\footnotesize 0.15\%};
+
+    \draw [thick] (axis cs:-1,0.53) -- (axis cs:-1,{std_norm(-1)+0.03});
+    \draw [thick] (axis cs:1,0.53) -- (axis cs:1,{std_norm(1)+0.03});
+    \draw [latex-latex](axis cs:-1,0.5) -- node [fill=white] {$68\%$} (axis cs:1,0.5);
+
+    \draw [thick] (axis cs:-2,0.63) -- (axis cs:-2,{std_norm(-2)+0.03});
+    \draw [thick] (axis cs:2,0.63) -- (axis cs:2,{std_norm(2)+0.03});
+    \draw [latex-latex](axis cs:-2,0.6) -- node [fill=white] {$95\%$} (axis cs:2,0.6);
+
+    \draw [thick] (axis cs:-3,0.73) -- (axis cs:-3,{std_norm(-3)+0.03});
+    \draw [thick] (axis cs:3,0.73) -- (axis cs:3,{std_norm(3)+0.03});
+    \draw [latex-latex](axis cs:-3,0.7) -- node [fill=white] {$99.7\%$} (axis cs:3,0.7);
+
+% The \end{axis} happens in the code after any other drawing on this axis.
+}
+
+\newcommand{\ConfidenceInterval}[1][Confidence Interval] {
+  \begin{axis}[DistAxis]
+    \centerFill{-1.75}{}{}{1.75}{}{}{}
+
+    \leftTail[fill=red!20]{-1.75}{}{}{}
+    \rightTail[fill=red!20]{1.75}{}{}{}
+
+    \confidenceLevel[\hbox{z=0}]{}
+    \drawDist;
+
+    \draw [thick] (axis cs:-1.75,0) -- (axis cs:-1.75,{std_norm(-1.75)}) coordinate[pos=1] (L);
+    \draw [thick] (axis cs:1.75,0) -- (axis cs:1.75,{std_norm(1.75)}) coordinate[pos=1] (R);
+
+    \draw [thick] (axis cs:-1.75,0.53) -- (axis cs:-1.75,{std_norm(-1.75)+0.03});
+    \draw [thick] (axis cs:1.75,0.53) -- (axis cs:1.75,{std_norm(1.75)+0.03});
+
+    \path let \p1=($(R)-(L)$) in (axis cs:0, 0.5)
+    node [draw=gray, 
+      left color=white,
+      right color=green!30,
+      double arrow,
+      minimum height=\x1,
+      minimum width=1cm,
+      double arrow head extend=0.05cm,inner xsep=0pt
+    ] {#1};
+
+% The \end{axis} happens in the code after any other drawing on this axis.
+}
+
+\tikzset{
+   stat lib fat arrow/.style 2 args={
+    every to/.style={
+      to path={
+        let \p1 = ($(\tikztotarget)-(\tikztostart)$),
+            \n1 = {int(mod(scalar(atan2(\y1,\x1))+360, 360))}, % calculate angle in range [0,360)
+            \p2 = ($(\tikztotarget.\n1+180)-(\tikztostart.\n1)$),
+            \n2 = {veclen(\x2,\y2)}
+        in
+        -- (\tikztotarget)
+        node[draw, % blue,
+             #1,   % pass color stuff here!
+             inner xsep=0pt,inner ysep=7pt, % use inner ysep to set width
+             minimum height=\n2-\pgflinewidth+4pt,
+             single arrow,
+             single arrow head extend=2.0pt,
+             rotate=\n1, % not shape border rotate, because that for some reason didn't work
+             anchor=tip, % anchor=tip added, pos=0.5 removed
+             #2          % arguments passed to fat arrow added here
+             ]
+          at (\tikztotarget.\n1+180)
+          {} \tikztonodes}
+  }},
+  stat lib fat arrow/.default= % empty default for argument of fat arrow
+}
+
+\tikzset{
+   stat lib no arrow/.style 2 args={
+    every to/.style={
+      to path={
+        let \p1 = ($(\tikztotarget)-(\tikztostart)$),
+            \n1 = {int(mod(scalar(atan2(\y1,\x1))+360, 360))}, % calculate angle in range [0,360)
+            \p2 = ($(\tikztotarget.\n1+180)-(\tikztostart.\n1)$),
+            \n2 = {veclen(\x2,\y2)}
+        in
+        -- (\tikztotarget)
+        node[draw, % blue,
+             #1,   % pass color stuff here!
+             inner xsep=0pt,inner ysep=7pt, % use inner ysep to set width
+             minimum height=\n2-\pgflinewidth+4pt,
+             single arrow,
+             single arrow head extend=2.0pt,
+             rotate=\n1, % not shape border rotate, because that for some reason didn't work
+             anchor=tip, % anchor=tip added, pos=0.5 removed
+             #2          % arguments passed to no arrow added here
+             ]
+          at (\tikztotarget.\n1+180)
+          {} \tikztonodes}
+  }},
+  stat lib no arrow/.default= % empty default for argument of no arrow
+}
+
+\newcommand{\RightTailHypothesis}{
+  \begin{axis}[DistAxis]
+    \centerFill{-3.0}{}{}{1.75}{}{}{}
+
+    \rightTail[fill=red!20]{1.75}{}{$\alpha$}{}
+
+    \confidenceLevel[0]{}
+    \drawDist;
+
+    \node at (axis cs:-4.0,0.5)   (A) {};
+    \node at (axis cs:1.75,0.5) (B) {};
+    \node at (axis cs:4.0,0.5)  (C) {};
+
+    \path[stat lib fat arrow={green!50!black,left color = green!30, right color = white}{}] (B) to (A);
+    \path[stat lib fat arrow={red!50!black, left color = white, right color = red!30}{}] (B) to (C);
+
+    \path (A) -- (B) node [midway] {Expected};
+    \path (B) -- (C) node [midway] {Unusual};
+
+    \draw [thick] (axis cs:1.75,0)    -- (axis cs:1.75,{std_norm(1.75)});
+    \draw [thick] (axis cs:1.75,0.53) -- (axis cs:1.75,{std_norm(1.75)+0.03});
+}
+
+\newcommand{\LeftTailHypothesis}{
+  \begin{axis}[DistAxis]
+    \centerFill{-1.75}{}{}{3.0}{}{}{}
+
+    \leftTail[fill=red!20]{-1.75}{}{$\alpha$}{}
+
+    \confidenceLevel[\hbox{z=0}]{}
+    \drawDist;
+
+    \node at (axis cs:4.0,0.5)   (A) {};
+    \node at (axis cs:-1.75,0.5) (B) {};
+    \node at (axis cs:-4.0,0.5)  (C) {};
+
+    \path[stat lib fat arrow={green!50!black,left color = green!30, right color = white}{}] (B) to (A);
+    \path[stat lib fat arrow={red!50!black, left color = white, right color = red!30}{}] (B) to (C);
+
+    \path (A) -- (B) node [midway] {Expected};
+    \path (B) -- (C) node [midway] {Unusual};
+
+    \draw [thick] (axis cs:-1.75,0)    -- (axis cs:-1.75,{std_norm(-1.75)});
+    \draw [thick] (axis cs:-1.75,0.53) -- (axis cs:-1.75,{std_norm(-1.75)+0.03});
+}
+
+\newcommand{\TwoTailHypothesis}{
+  \begin{axis}[DistAxis]
+    \centerFill{-1.75}{}{}{1.75}{}{}{}
+
+    \leftTail[fill=red!20]{-1.75}{}{$\alpha/2$}{}
+    \rightTail[fill=red!20]{1.75}{}{$\alpha/2$}{}
+
+    \confidenceLevel[\hbox{z=0}]{}
+    \drawDist;
+
+    \node at (axis cs:4.0,0.5)   (A) {};
+    \node at (axis cs:1.75,0.5)  (B) {};
+    \node at (axis cs:-1.75,0.5) (C) {};
+    \node at (axis cs:-4.0,0.5)  (D) {};
+
+    \path[stat lib fat arrow={red!50!black,left color = red!30, right color = white}{}] (B) to (A);
+    \path let \p1 = ($(B)-(C)$) in node (rect) at (axis cs:0, 0.5) [draw=green!50!black, minimum width=\x1, minimum height=14pt, fill=green!30] {};
+    \path[stat lib fat arrow={red!50!black,left color = white, right color = red!30}{}] (C) to (D);
+
+    \path (A) -- (B) node [midway] {Unusual};
+    \path (B) -- (C) node [midway] {Expected};
+    \path (C) -- (D) node [midway] {Unusual};
+
+    \draw [thick] (axis cs:-1.75,0)    -- (axis cs:-1.75,{std_norm(-1.75)});
+    \draw [thick] (axis cs: 1.75,0)    -- (axis cs: 1.75,{std_norm( 1.75)});
+    \draw [thick] (axis cs:-1.75,0.53) -- (axis cs:-1.75,{std_norm(-1.75)+0.03});
+    \draw [thick] (axis cs: 1.75,0.53) -- (axis cs: 1.75,{std_norm( 1.75)+0.03});
+}
+
+\newcommand{\rValues}{
+  \begin{tblr}{colspec={cccl},
+               rowspec={Q},
+               row{even} = {black!20},
+               row{1} = {white},
+               row{2} = {red!20},
+               hline{2}={solid},
+               hline{3}={solid},
+               hline{Z}={solid},
+               vline{1}={2-Z}{solid},
+               vline{Z}={2-Z}{solid}
+  }
+  \SetCell[c=4]{c} \textbf{Correlation Coefficient} & \\
+  \SetCell[c=3]{c} \textbf{Interval} &&& \SetCell{l} \textbf{Meaning} \\
+       & -1 &      & Exact negative linear relationship \\ 
+  -1.0 & .. & -0.8  & Strong negative linear relationship \\
+  -0.8 & .. & -0.5  & Moderate negative linear relationship \\
+  -0.5 & .. & 0     & Weak negative linear relationship \\
+       &  0 &      & No linear relationship \\
+     0 & .. &  0.5 & Weak positive linear relationship \\
+   0.5 & .. & 0.8  & Moderate positive linear relationship \\
+   0.8 & .. & 1    & Strong positive linear relationship \\
+       &  1 &      & Exact positive linear relationship \\
+  \end{tblr}
+}
+
+\newcommand{\rSqValues}{
+  \begin{tblr}{colspec={cccl},
+               rowspec={Q},
+               row{even} = {black!20},
+               row{1} = {white},
+               row{2} = {red!20},
+               hline{2}={solid},
+               hline{3}={solid},
+               hline{Z}={solid},
+               vline{1}={2-Z}{solid},
+               vline{Z}={2-Z}{solid}
+  }
+  \SetCell[c=4]{c} \textbf{Coefficient of Determination} & \\
+  \SetCell[c=3]{c} \textbf{Interval} &&& \SetCell{l} \textbf{Meaning} \\
+       & 0   &      & the variables are unrelated \\
+  0    & ..  & 0.5  & the variables are weakly related \\ 
+  0.5  & ..  & 0.8  & the x-value can roughly predict y-values \\
+  0.8  & ..  & 0.95 & the x-value can reasonably predict y-values \\
+  0.95 & ..  & 1.0  & the x-value does a good job of predicting y-values \\
+       & 1.0 &      & the x-value perfectly predicts y-values \\ 
+  \end{tblr}
+}
+
+
+  %% \end{tabu}}

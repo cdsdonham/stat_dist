@@ -1,0 +1,698 @@
+% Stat_Dist is a package for formating statistical distributions
+% in documentation.  I have focused on Normal Distributions and
+% Student T Distributions, with some support for Chi-Square
+% Distributions.
+% 
+% (c) Christopher Donham
+%
+%% This program can be redistributed and/or modified under the terms
+%% of the LaTeX Project Public License Distributed from CTAN archives
+%% in directory macros/latex/base/lppl.txt.
+% 
+
+\NeedsTeXFormat{LaTeX2e}[1994/06/01]
+\ProvidesPackage{stat_dist}
+  [2020/01/01 v0.01 Initial implementation]
+
+\RequirePackage{pgfplots}
+%\RequirePackage{colortbl}
+
+\RequirePackage{tikz}
+\usetikzlibrary{patterns}
+
+\RequirePackage{xparse}
+\RequirePackage{namedef}
+
+% No Options
+\DeclareOption*{\PackageWarning{examplepackage}{Unknown \CurrentOption}}
+\ProcessOptions\relax
+
+\pgfplotsset{compat=1.15}
+
+\pgfmathsetmacro\@secondAxis{-0.15}
+\pgfmathsetmacro\@ticLen{0.02}
+\pgfmathsetmacro\@secondTier{0.07}
+
+% This code allows me to name newcommand parameters.  Some of the
+% commands have enough parameters and enough code that it is hard
+% to keep track of #3 vs #7 vs ...
+%
+% Define \newnamedcommand
+\ExplSyntaxOn
+\seq_new:N \l__NNC_args_seq
+\scan_new:N \s__NNC
+\NewDocumentCommand \newnamedcommand { s m o o m }
+  { \NNC_newcommand:NnNnnn \newcommand {#1} #2 {#3} {#4} {#5} }
+\NewDocumentCommand \renewnamedcommand { s m o o m }
+  { \NNC_newcommand:NnNnnn \renewcommand {#1} #2 {#3} {#4} {#5} }
+\NewDocumentCommand \providenamedcommand { s m o o m }
+  { \NNC_newcommand:NnNnnn \providecommand {#1} #2 {#3} {#4} {#5} }
+\named \cs_new_protected:Npn \NNC_newcommand:NnNnnn
+    #[newcmd] #[star] #[cmd] #[args] #[opt] #[defn]
+  {
+    \seq_clear:N \l__NNC_args_seq
+    \IfValueT {#[args]}
+      { \seq_set_from_clist:Nn \l__NNC_args_seq {#[args]} }
+    \__NNC_newcommand:NnNn #[newcmd] {#[star]} #[cmd] {#[opt]}
+    \__NNC_named_def:nNnn {#[star]} #[cmd] {#[opt]} {#[defn]}
+  }
+\named \cs_new_protected:Npn \__NNC_newcommand:NnNn
+    #[newcmd] #[star] #[cmd] #[opt]
+  {
+    \use:x
+      {
+        \exp_not:N #[newcmd]
+        \IfBooleanT {#[star]} { * }
+        \exp_not:N #[cmd]
+        \seq_if_empty:NF \l__NNC_args_seq
+          { [ \seq_count:N \l__NNC_args_seq ] }
+        \IfValueT {#[opt]} { [ \__NNC_opt_value:w #[opt] \s__NNC ] }
+          { }
+      }
+  }
+\cs_new:Npn \__NNC_opt_value:w #1 = #2 \s__NNC {#2}
+\named \cs_new_protected:Npn \__NNC_named_def:nNnn
+    #[star] #[cmd] #[opt] #[defn]
+  {
+    \use:x
+      {
+        \IfBooleanF {#[star]} { \long }
+        \named \def
+        \IfValueTF {#[opt]}
+          {
+            \exp_not:c { \token_to_str:N #[cmd] }
+              [ \exp_not:o { \__NNC_opt_name:w #[opt] \s__NNC } ]
+          }
+          { \exp_not:N #[cmd] }
+        \seq_use:Nn \l__NNC_args_seq { }
+        { \exp_not:n {#[defn]} }
+      }
+  }
+\cs_new:Npn \__NNC_opt_name:w #1 = #2 \s__NNC {#1}
+\ExplSyntaxOff
+
+\pgfmathdeclarefunction{std_norm}{1}{%
+  \pgfmathparse{1/(sqrt(2*pi))*exp(-((#1)^2)/(2))}%
+}
+
+\pgfmathdeclarefunction{gamma}{1}{%
+  \pgfmathparse{2.506628274631*sqrt(1/#1) + 0.20888568*(1/#1)^(1.5) + %
+                0.00870357*(1/#1)^(2.5) - (174.2106599*(1/#1)^(3.5))/25920 - %
+                (715.6423511*(1/#1)^(4.5))/1244160)*exp((-ln(1/#1)-1)*#1}%
+}
+
+\pgfmathdeclarefunction{std_stud}{2}{%
+  \pgfmathparse{gamma(.5*(#1+1))/(sqrt(#1*pi)*gamma(.5*#1))*((1+(#2*#2)/#1)^(-.5*(#1+1)))}%
+}
+
+\pgfmathdeclarefunction{chi_sq}{1}{%
+  \pgfmathparse{exp(ln(#1/2)*5/2-ln(#1)-#1/2-ln(3/4*sqrt(pi) ))}%
+}
+
+%binom(x,n=40, p=0.2)
+\pgfmathdeclarefunction{binom}{3}{%
+  \pgfmathparse{(#2)!/((#1)!*((#2)-(#1))!)*(#3)^(#1)*(1-(#3))^((#2)-(#1))}%
+  %              n!  /( x!  *  (n - x)!   * p  ^  x * (1- p) ^ (n  -  x)
+}
+
+\newenvironment{NormDist}{%
+  % Declare the functions that work in this environment
+  \let\centerFill\center@Fill %
+  \let\rightTail\right@Tail %
+  \let\leftTail\left@Tail   %
+  \let\drawDist\draw@Dist   %
+  \let\confidenceLevel\confidence@Level   %
+  \let\secondAxis\second@Axis   %
+  \let\leftTestStatistic\left@TestStatistic %
+  \let\rightTestStatistic\right@TestStatistic %
+  % Set up the distribution function
+  \pgfmathdeclarefunction{myDist}{1}{%
+    \pgfmathparse{std_norm(##1)}%
+  }
+  \pgfplotsset{DistAxis/.style={%
+    no markers, 
+    domain=-4:4, % Only display z values between -4 and 4.
+    samples=100, 
+    xlabel=\textbf{z},
+    every axis x label/.style={at={(axis description cs:1.0, 0.0)}, anchor=west},
+    height=5cm, width=12cm,
+    xtick=\empty, ytick=\empty,
+    enlargelimits=false, 
+    clip=false, 
+    axis on top=true,
+    hide y axis, 
+    axis x line*=middle,
+    axis line style ={thick,latex-latex,black}}
+  }
+}
+{}
+
+\newenvironment{ChiDist}{%
+  % Declare the functions that work in this environment
+  \let\rightTestChi\right@TestChi   %
+  \let\rightTailChi\right@TailChi   %
+  \let\drawDist\draw@Dist   %
+  % Set up the distribution function
+  \pgfmathdeclarefunction{myDist}{1}{%
+    \pgfmathparse{chi_sq(##1)}%
+%    \pgfmathparse{exp(ln(##1/2)*5/2-ln(##1)-##1/2-ln(3/4*sqrt(pi) ))}%
+  }
+  \pgfplotsset{DistAxis/.style={%
+    no markers, 
+    domain=.001:15, 
+    samples=100, 
+    xlabel=\textbf{$\chi^2$},
+    every axis x label/.style={at={(axis description cs:1.0, 0.0)}, anchor=west},
+    height=5cm, width=12cm,
+    xtick=\empty, ytick=\empty,
+    enlargelimits=false, 
+    clip=false, 
+    axis on top=true,
+    axis x line*=middle,
+    axis y line*=middle,
+    axis line style ={thick,-latex,black}}
+  }
+}
+{}
+
+% #1 is the degrees of freedom and that comes from the environment.
+% ##1 is the t score and that comes from myDist.
+%
+% StudDist use 9 for best spacing.
+%
+\newenvironment{StudDist}[1]{%
+  % Declare the functions that work in this environment
+  \let\centerFill\center@Fill %
+  \let\rightTail\right@Tail %
+  \let\leftTail\left@Tail   %
+  \let\drawDist\draw@Dist   %
+  \let\confidenceLevel\confidence@Level   %
+  \let\secondAxis\second@Axis   %
+  \let\leftTestStatistic\left@TestStatistic %
+  \let\rightTestStatistic\right@TestStatistic %
+  % Set up the distribution function
+  \pgfmathdeclarefunction{myDist}{1}{%
+    \pgfmathparse{std_stud(#1,##1)}%
+  }
+  \pgfplotsset{DistAxis/.style={%
+    no markers, 
+    domain=-4:4, 
+    samples=100, 
+    xlabel=\textbf{t},
+    every axis x label/.style={at={(axis description cs:1.0, 0.0)}, anchor=west},
+    height=5cm, width=12cm,
+    xtick=\empty, ytick=\empty,
+    enlargelimits=false, 
+    clip=false,
+    axis on top=true,
+    hide y axis, 
+    axis x line*=middle,
+    axis line style ={thick,latex-latex,black}}
+  }
+}
+{}
+
+\newenvironment{FakeStudDist}[1]{%
+  % Declare the functions that work in this environment
+  \let\centerFill\center@Fill %
+  \let\rightTail\right@Tail %
+  \let\leftTail\left@Tail   %
+  \let\drawDist\draw@Dist   %
+  \let\confidenceLevel\confidence@Level   %
+  \let\secondAxis\second@Axis   %
+  \let\leftTestStatistic\left@TestStatistic %
+  \let\rightTestStatistic\right@TestStatistic %
+  % Set up the distribution function
+  \pgfmathdeclarefunction{myDist}{1}{%
+    \pgfmathparse{std_norm(##1)}%
+  }
+  \pgfplotsset{DistAxis/.style={%
+    no markers, 
+    domain=-4:4, % Only display z values between -4 and 4.
+    samples=100, 
+    xlabel=\textbf{t},
+    every axis x label/.style={at={(axis description cs:1.0, 0.0)}, anchor=west},
+    height=5cm, width=12cm,
+    xtick=\empty, ytick=\empty,
+    enlargelimits=false, 
+    clip=false, 
+    axis on top=true,
+    hide y axis, 
+    axis x line*=middle,
+    axis line style ={thick,latex-latex,black}}
+  }
+}
+{}
+
+% #1 = n, #2 = p
+\newenvironment{BinomDist}[2]{%
+  % Declare the functions that work in this environment
+  \let\leftTail\left@TailBin %
+  \let\rightTail\right@TailBin %
+  \let\drawDist\draw@Dist   %
+  \let\leftTestStatistic\left@TestStatistic %
+  \let\rightTestStatistic\right@TestStatistic %
+  \edef\numTrials{#1}%
+  \edef\probSuccess{#2}%
+  % Set up the distribution function
+  \pgfmathdeclarefunction{myDist}{1}{%
+    \pgfmathparse{binom(##1,#1,#2)}%
+  }
+  \pgfplotsset{DistAxis/.style={%
+    no markers, 
+    samples at={0,...,\the\numexpr#1-1}, 
+    xlabel=\textbf{x},
+    every axis x label/.style={at={(axis description cs:1.0, 0.0)}, anchor=west},
+     height=5cm, width=12cm,
+     enlargelimits=false,
+     clip=false,
+     axis on top=true,
+     ybar=0pt, bar width=1,
+     bar shift=0.5,
+     hide y axis, 
+     axis x line*=bottom,
+     axis line style ={thick,black}},
+%    nodes near coords,
+%    nodes near coords style={/pgf/number format/.cd,precision=1},
+  }
+}
+{}
+
+\newcommand{\drawDist}[1][draw=cyan!50!black]{
+  \@latex@error{\noexpand\drawDist not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+% Draw the distribution without ornamentation or fill.
+\newcommand{\draw@Dist}[1][draw=cyan!50!black]{
+%  \addplot [very thick,smooth,#1] {myDist(x)};
+  \addplot [very thick,#1] {myDist(x)} %;
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\centerFill}[8][fill=green!20]{%
+  \@latex@error{\noexpand\centerFill not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Fill in the region between two z scores.
+\newnamedcommand{\center@Fill}[#[leftValue],  #[leftLabel], #[leftProblem],
+                               #[rightValue], #[rightLabel],#[rightProblem], #[area]]
+                             [#[colorFill]={fill=green!20}]{%
+%
+  % Draw the center area filled.
+%  \ifx#[colorFill]\empty
+  \if\relax\detokenize{#[colorFill]}\relax
+  \else
+    \addplot [#[colorFill], draw=none, domain=#[leftValue]:#[rightValue]]  {myDist(x)} \closedcycle;
+  \fi
+%
+  % Add a tick mark for the z score and add the label.
+%  \ifx#[leftLabel]\empty
+  \if\relax\detokenize{#[leftLabel]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[leftValue], -\@ticLen) -- (axis cs:#[leftValue], {myDist(#[leftValue])});
+    \draw    node at (axis cs:#[leftValue],-\@ticLen) [below] {#[leftLabel]}; 
+  \fi
+%
+  % Put in the problem value (second axis) and associated tick.
+%  \ifx#[leftProblem]\empty
+  \if\relax\detokenize{#[leftProblem]}\relax
+ \else
+    \draw    [thick,magenta] (axis cs:#[leftValue], \@secondAxis-\@ticLen) -- (axis cs:#[leftValue],\@secondAxis+\@ticLen);
+    \draw    node at      (axis cs:#[leftValue],\@secondAxis-\@ticLen) [below] {#[leftProblem]}; 
+  \fi
+%
+  % Add a tick mark for the z score and add the label.
+%  \ifx#[rightLabel]\empty
+  \if\relax\detokenize{#[rightLabel]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[rightValue], -\@ticLen) -- (axis cs:#[rightValue], {myDist(#[rightValue])});
+    \draw    node at (axis cs:#[rightValue],-\@ticLen) [below] {#[rightLabel]}; 
+  \fi
+%
+  % Put in the problem value (second axis) and associated tick.
+%  \ifx#[rightProblem]\empty
+  \if\relax\detokenize{#[rightProblem]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[rightValue], \@secondAxis-\@ticLen) -- (axis cs:#[rightValue],\@secondAxis+\@ticLen);
+    \draw    node at      (axis cs:#[rightValue],\@secondAxis-\@ticLen) [below] {#[rightProblem]}; 
+  \fi
+%
+%  \ifx#[area]\empty
+  \if\relax\detokenize{#[area]}\relax
+  \else
+    \draw    node at      (axis cs:{0.5*(#[leftValue]+#[rightValue])},
+                            {myDist(0.5*(#[leftValue]+#[rightValue]))<0.2?0.17:0.11})
+                          [above] {#[area]}; 
+  \fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\leftTail}[5][fill=blue!20]{%
+  \@latex@error{\noexpand\leftTail not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Draw a [optionally filled] left tail with various labels.
+% Parameter 1 is the optional fill command.  Defaults to blue fill.
+\newnamedcommand{\left@Tail}[#[Value],#[Label],#[Alpha],#[Problem]]
+                            [#[colorFill]={fill=blue!20}]{%
+%
+  % Draw the left area filled.
+%  \ifx#[colorFill]\empty
+  \if\relax\detokenize{#[colorFill]}\relax
+  \else
+    \addplot [#[colorFill], draw=none, domain=-4:#[Value]] {myDist(x)} \closedcycle;
+  \fi
+%
+  % Add a tick mark for the z score and add the label.
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[Value], -\@ticLen) -- (axis cs:#[Value], {myDist(#[Value])});
+    \draw    node at (axis cs:#[Value],-\@ticLen) [below] {#[Label]}; 
+  \fi
+%
+  % Add the area and an arrow.
+%  \ifx#[Alpha]\empty
+  \if\relax\detokenize{#[Alpha]}\relax
+  \else
+    \draw    node at (axis cs:-2.5, 0.12) {#[Alpha]}; 
+    \draw    [thick, -latex] (axis cs:-2.4, 0.10) -- (axis cs:#[Value]-0.2, 0.05);
+  \fi
+%
+  % Put in the problem value (second axis) and associated tick.
+%  \ifx#[Problem]\empty
+  \if\relax\detokenize{#[Problem]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[Value], \@secondAxis-\@ticLen) -- (axis cs:#[Value],\@secondAxis+\@ticLen);
+    \draw    node at      (axis cs:#[Value],\@secondAxis-\@ticLen) [below] {#[Problem]}; 
+  \fi
+}
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\rightTail}[5][fill=magenta!20]{%
+  \@latex@error{\noexpand\rightTail not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Draw a [optionally filled] right tail with various labels.
+% Parameter 1 is the optional fill command.  Defaults to magenta fill.
+\newnamedcommand{\right@Tail}[#[Value],#[Label],#[Alpha],#[Problem]]
+                        [#[colorFill]={fill=magenta!20}]{%
+%
+  % If a color is given, fill in the right side area.
+%  \ifx#[colorFill]\empty
+  \if\relax\detokenize{#[colorFill]}\relax
+  \else
+    \addplot [#[colorFill], draw=none, domain=#[Value]:4]  {myDist(x)} \closedcycle;
+  \fi
+%    
+  % Add a tick mark for the z score and add the label.
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[Value], -\@ticLen) -- (axis cs:#[Value], {myDist(#[Value])});
+    \draw    node at (axis cs:#[Value],-\@ticLen) [below] {#[Label]};
+  \fi
+%
+  % Add the area and an arrow.
+%  \ifx#[Alpha]\empty
+  \if\relax\detokenize{#[Alpha]}\relax
+  \else
+    \draw    node at (axis cs:2.5, 0.12) {#[Alpha]};  
+    \draw    [thick, -latex] (axis cs:2.4, 0.10) -- (axis cs:#[Value]+0.2, 0.05);
+  \fi
+%
+  % Put in the problem value and associated tick on the second axis.
+%  \ifx#[Problem]\empty
+  \if\relax\detokenize{#[Problem]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[Value], \@secondAxis-\@ticLen) -- (axis cs:#[Value], \@secondAxis+\@ticLen);
+    \draw    node at      (axis cs:#[Value],\@secondAxis-\@ticLen) [below] {#[Problem]}; 
+  \fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\rightTailChi}[4][fill=magenta!20]{%
+  \@latex@error{\noexpand\rightTailChi not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\rightTailChi{ critical value, critical value label, alpha}
+\newnamedcommand{\right@TailChi}[#[Value],#[Label]#[Alpha]]
+                           [#[colorFill]={fill=magenta!20}]{%
+%
+  % Draw the chi^2 curve with the right area filled.
+%  \ifx#[colorFill]\empty
+  \if\relax\detokenize{#[colorFill]}\relax
+  \else
+    \addplot [#[colorFill], draw=none, domain=#[Value]:15]  {myDist(x)} \closedcycle;
+  \fi
+%
+   % Add a tick mark for the chi^2 score and add the label.
+%   \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+   \else
+     \draw    [thick,black] (axis cs:#[Value], -0.01) -- (axis cs:#[Value], {myDist(#[Value])});
+     \draw    node at (axis cs:#[Value],-0.03) [below] {#[Label]};  %0.025
+   \fi
+%
+  % Add the area and an arrow.
+%  \ifx#[Alpha]\empty
+  \if\relax\detokenize{#[Alpha]}\relax
+  \else
+     \draw    node at (axis cs:12, 0.08) {#[Alpha]};  %% HERE
+     \draw    [thick, -latex] (axis cs:11.8, 0.06) -- (axis cs:#[Value]+1, 0.01);
+  \fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\rightTailBin}[4][fill=magenta!20]{%
+  \@latex@error{\noexpand\rightTailBin not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newnamedcommand{\right@TailBin}[#[Value],#[Label],#[Alpha]][#[colorFill]={fill=magenta!20}]{%
+%
+  % Draw the binomial curve with the right area filled.
+%  \ifx#[colorFill]\empty
+  \if\relax\detokenize{#[colorFill]}\relax
+  \else
+    \addplot [#[colorFill], draw=none, samples at={#[Value],...,\numTrials}]  {myDist(x)};
+  \fi
+%
+   % Add a tick mark for x and add the label.
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+     \draw    [very thick,black] (axis cs:#[Value], -0.01) -- (axis cs:#[Value], {myDist(#[Value])});
+     \draw    node at (axis cs:#[Value],-0.04) [below] {#[Label]};  %0.025
+  \fi
+%
+  %% % Add the area and an arrow.
+  %% \ifpgfkeyempty{/variables/@mRTB/Alpha}{}{
+  %%    \draw    node at (axis cs:12, 0.08) {\getValue{@mRTB/Alpha}};  %% HERE
+  %%    \draw    [thick, -latex] (axis cs:11.8, 0.06) -- (axis cs:\getValue{@mRTB/Value}+1, 0.01);
+  %% }
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\leftTailBin}[4][fill=magenta!20]{%
+  \@latex@error{\noexpand\leftTailBin not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newnamedcommand{\left@TailBin}[#[Value],#[Label],#[Alpha]][#[colorFill]={fill=magenta!20}]{%
+%
+  % Draw the binomial curve with the right area filled.
+%  \ifx#[colorFill]\empty
+  \if\relax\detokenize{#[colorFill]}\relax
+  \else
+    \addplot [#[colorFill], draw=none, samples at={0,...,\the\numexpr#[Value]-1}]  {myDist(x)};
+  \fi
+%
+   % Add a tick mark for x and add the label.
+%   \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+   \else
+     \draw    [very thick,black] (axis cs:#[Value], -0.01) -- (axis cs:#[Value], {myDist(#[Value])});
+     \draw    node at (axis cs:#[Value],-0.04) [below] {#[Label]};  %0.025
+   \fi
+%
+  %% % Add the area and an arrow.
+  %% \ifpgfkeyempty{/variables/@mLTB/Alpha}{}{
+  %%    \draw    node at (axis cs:12, 0.08) {\getValue{@mLTB/Alpha}};  %% HERE
+  %%    \draw    [thick, -latex] (axis cs:11.8, 0.06) -- (axis cs:\getValue{@mLTB/Value}+1, 0.01);
+  %% }
+}
+
+\newcommand{\confidenceLevel}[2][0]{%
+  \@latex@error{\noexpand\confidenceLevel not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Put z score 0 at the center of the z axis and the area in the center.
+\newnamedcommand{\confidence@Level}[#[Area]][#[Label]={0}]{%
+%
+  \draw    [thick,magenta] (axis cs:0, -\@ticLen) -- (axis cs:0, \@ticLen);
+  \draw    node at (axis cs:0,-\@ticLen) [below] {#[Label]};
+%
+%  \ifx#[Area]\empty
+  \if\relax\detokenize{#[Area]}\relax
+  \else
+    \draw    node at (axis cs:0, 0.12) {#[Area]};
+  \fi
+}
+
+\newcommand{\secondAxis}[2]{%
+  \@latex@error{\noexpand\secondAxis not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \secondAxis{ mean, axis label}
+\newnamedcommand{\second@Axis}[#[Mean],#[Label]]{%
+%
+  % Draw the axis.
+  \draw [thick, latex-latex,black] (axis cs:-4,\@secondAxis) -- (axis cs:4,\@secondAxis);
+%
+  % Put a tick in the center and the value below the tick.
+%  \ifx#[Mean]\empty
+  \if\relax\detokenize{#[Mean]}\relax
+  \else
+    \draw [thick,magenta] (axis cs:0,\@secondAxis-\@ticLen) -- (axis cs:0,\@secondAxis+\@ticLen);
+    \draw    node at      (axis cs:0,\@secondAxis-\@ticLen)  [below] {#[Mean]};
+  \fi
+%  
+  % Put a label at the end of the axis if given.
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+    \draw    node at      (axis cs:4.0,\@secondAxis)         [right] {#[Label]};
+  \fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\leftTestStatistic}[4]{%
+  \@latex@error{\noexpand\leftTestStatistic not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+% If the left value is greater than zero, then clamp the result a bit
+% above the peak of the curve (0).  If the left value is smaller than
+% -1.5, then clamp the value a bit above -1.5
+\newcommand{\left@TestHelper}[2]{%
+   #1>0?(#2+myDist(0.0)):
+      (#1<-1.5?(#2+myDist(-1.5)):
+         (#2+myDist(#1)))
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\leftTestStatistic{ test statistic, test statistic, pvalue, problem }
+\newnamedcommand{\left@TestStatistic}[#[Value],#[Label],#[PValue],#[Problem]][#[offset]=0.075]{%
+%    
+  % Draw the dashed line through the normal curve and label the z value.
+  \draw    [thick,magenta,dashed] (axis cs:#[Value], -\@ticLen) -- (axis cs:#[Value], {\left@TestHelper{#[Value]}{#[offset]}});
+%
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+    \draw    node at (axis cs:#[Value],-\@secondTier) [below] {#[Label]};
+  \fi
+%
+  % Draw a line/arrow pointing to the left and put the area (pvalue) underneath
+%  \ifx#[PValue]\empty
+  \if\relax\detokenize{#[PValue]}\relax
+  \else
+    \draw    [thick, -latex] (axis cs:#[Value]-0.1, {\left@TestHelper{#[Value]}{#[offset]}}) -- (axis cs:-4.0, {\left@TestHelper{#[Value]}{#[offset]}});
+    \draw    [anchor=north east] node at (axis cs:#[Value]-0.05, {\left@TestHelper{#[Value]}{#[offset]}}) {#[PValue]};
+  \fi
+%
+  % Draw a tick for the second axis and put the problem value on it.
+%  \ifx#[Problem]\empty
+  \if\relax\detokenize{#[Problem]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[Value],\@secondAxis-\@ticLen) -- (axis cs:#[Value],\@secondAxis+\@ticLen);
+    \draw    node at         (axis cs:#[Value],\@secondAxis-\@secondTier) [below] {#[Problem]}; 
+  \fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\rightTestStatistic}[4]{%
+  \@latex@error{\noexpand\rightTestStatistic not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+\newcommand{\right@TestHelper}[2]{%
+  #1<0?(#2+myDist(0.0)):
+    (#1>1.5?(#2+myDist(1.5)):
+       (#2+myDist(#1)))
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newnamedcommand{\right@TestStatistic}[#[Value],#[Label],#[PValue],#[Problem]][#[offset]=0.075]{%
+  % Draw the dashed line through the normal curve and label the z value.
+  \draw    [thick,magenta,dashed] (axis cs:#[Value], -\@ticLen) -- (axis cs:#[Value], {\right@TestHelper{#[Value]}{#[offset]}});
+%
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+    \draw    node at (axis cs:#[Value],-\@secondTier) [below] {#[Label]}; 
+  \fi
+%
+  % Draw a line/arrow pointing to the right and put the area (pvalue) underneath
+%  \ifx#[PValue]\empty
+  \if\relax\detokenize{#[PValue]}\relax
+  \else
+    \draw    [thick, -latex] (axis cs:#[Value]+0.1, {\right@TestHelper{#[Value]}{#[offset]}}) -- (axis cs:4.0, {\right@TestHelper{#[Value]}{#[offset]}});
+    \draw    [anchor=north west] node at (axis cs:#[Value]+0.05, {\right@TestHelper{#[Value]}{#[offset]}}) {#[PValue]}; 
+  \fi
+%
+  % Draw a tick for the second axis and put the problem value on it.
+%  \ifx#[Problem]\empty
+  \if\relax\detokenize{#[Problem]}\relax
+  \else
+    \draw    [thick,magenta] (axis cs:#[Value],\@secondAxis-\@ticLen) -- (axis cs:#[Value],\@secondAxis+\@ticLen);
+    \draw    node at         (axis cs:#[Value],\@secondAxis-\@secondTier) [below] {#[Problem]}; 
+  \fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\rightTestChi}[3]{%
+  \@latex@error{\noexpand\rightTestChi not used in proper environment}
+               {Command only allowed in StudDist and NormDist}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\rightTestStatistic{ test statistic, test statistic, pvalue }
+\newnamedcommand{\right@TestChi}[#[Value],#[Label],#[PValue]]{%
+%
+%  \ifx#[Label]\empty
+  \if\relax\detokenize{#[Label]}\relax
+  \else
+     % Draw the dashed line through the normal curve and label the z value.
+     \draw    [thick,magenta,dashed] (axis cs:#[Value], -0.01) -- (axis cs:#[Value], {0.05+myDist(#[Value])});
+     \draw    node at (axis cs:#[Value],-0.01) [below] {#[Label]};
+  \fi
+%
+%  \ifx#[PValue]\empty
+  \if\relax\detokenize{#[PValue]}\relax
+  \else
+    % Draw a line/arrow pointing to the right and put the area (pvalue) underneath
+    \draw    [thick, -latex] (axis cs:#[Value]+0.1, {0.05+myDist(#[Value])}) --
+                             (axis cs:#[Value]+2.0, {0.05+myDist(#[Value])});
+    \draw    [anchor=west] node at (axis cs:#[Value]+0.1, {0.04+myDist(#[Value])}) {#[PValue]};
+  \fi
+}
+
+\endinput
+%%
+%% End of file `stat_dist.sty'.
